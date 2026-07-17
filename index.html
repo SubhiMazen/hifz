@@ -371,9 +371,16 @@ function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
     for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
     [prev,cur]=[cur,prev];}
   return prev[n];}
-const tokEq=(a,b)=>{ if(a===b)return true;
-  const d=lev(a,b),mn=a.length<b.length?a.length:b.length,mx=a.length>b.length?a.length:b.length;
-  return (mn>=3&&d<=1)||(mx>=6&&d<=2); };
+/* two words are "equal" if identical, or share the same consonant skeleton
+   (ignoring long vowels ا و ي) — bridges mushaf spelling (الكتب/الكتاب,
+   الصلوة/الصلاة, رزقنهم/رزقناهم) WITHOUT merging distinct words like يؤمنون/يوقنون */
+const skel=w=>w.replace(/[اوي]/g,'');
+const tokEq=(a,b)=>{
+  if(a===b)return true;
+  if(a.length>=4&&b.length>=4){const sa=skel(a),sb=skel(b);
+    if(sa.length>=2&&sa===sb&&lev(a,b)<=2)return true;}
+  return false;
+};
 const MUQ=new Set(['الم','المص','الر','المر','كهيعص','طه','طسم','طس','يس','ص','حم','عسق','حمعسق','ق','ن']);
 const isMuqatta=w=>MUQ.has(normAr(w));
 function lcsMatch(ref,heard){
@@ -389,18 +396,15 @@ function lcsMatch(ref,heard){
 }
 const colorRef=(refWords,matched)=>refWords.map((w,i)=>
   `<span class="${matched[i]?'hit':'miss'}">${w}</span>`).join(' ');
-/* sequential aligner: reveals expected words in order, so a repeated word
-   only reveals when the reciter actually reaches that occurrence */
+/* sequential aligner: walks forward and matches each spoken word to the NEAREST
+   upcoming expected word within a small window. No long-range jumps, so a repeated
+   word (يؤمنون, على..) only reveals at the occurrence the reciter is actually on. */
 function forwardMatch(PW,heard){
   const matched=new Array(PW.length).fill(false);
-  let p=0;const W=5,LOOK=40;
+  let p=0;const W=8;
   for(let h=0;h<heard.length&&p<PW.length;h++){
     const tok=heard[h];let found=-1;
     for(let k=p;k<Math.min(PW.length,p+W);k++){if(tokEq(PW[k],tok)){found=k;break;}}
-    if(found<0){ /* bigger gap: resync only if the next word confirms it (avoids jumping to a far duplicate) */
-      for(let k=p+W;k<Math.min(PW.length,p+LOOK);k++){
-        if(tokEq(PW[k],tok)&&h+1<heard.length&&k+1<PW.length&&tokEq(PW[k+1],heard[h+1])){found=k;break;}}
-    }
     if(found>=0){matched[found]=true;p=found+1;}
   }
   return matched;
