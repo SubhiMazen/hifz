@@ -396,12 +396,13 @@ function lcsMatch(ref,heard){
 }
 const colorRef=(refWords,matched)=>refWords.map((w,i)=>
   `<span class="${matched[i]?'hit':'miss'}">${w}</span>`).join(' ');
-/* sequential aligner: walks forward and matches each spoken word to the NEAREST
-   upcoming expected word within a small window. No long-range jumps, so a repeated
-   word (يؤمنون, على..) only reveals at the occurrence the reciter is actually on. */
+/* sequential aligner: matches each spoken word to the NEAREST upcoming expected
+   word within a SMALL window. Tight window = a garbled/misheard token (very common
+   with full tajwid) can only reach a word or two ahead, so it can't falsely light up
+   words further down that weren't recited — it just gets skipped as noise. */
 function forwardMatch(PW,heard){
   const matched=new Array(PW.length).fill(false);
-  let p=0;const W=8;
+  let p=0;const W=3;
   for(let h=0;h<heard.length&&p<PW.length;h++){
     const tok=heard[h];let found=-1;
     for(let k=p;k<Math.min(PW.length,p+W);k++){if(tokEq(PW[k],tok)){found=k;break;}}
