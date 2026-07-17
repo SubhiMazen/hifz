@@ -385,6 +385,22 @@ function lcsMatch(ref,heard){
 }
 const colorRef=(refWords,matched)=>refWords.map((w,i)=>
   `<span class="${matched[i]?'hit':'miss'}">${w}</span>`).join(' ');
+/* sequential aligner: reveals expected words in order, so a repeated word
+   only reveals when the reciter actually reaches that occurrence */
+function forwardMatch(PW,heard){
+  const matched=new Array(PW.length).fill(false);
+  let p=0;const W=5,LOOK=40;
+  for(let h=0;h<heard.length&&p<PW.length;h++){
+    const tok=heard[h];let found=-1;
+    for(let k=p;k<Math.min(PW.length,p+W);k++){if(tokEq(PW[k],tok)){found=k;break;}}
+    if(found<0){ /* bigger gap: resync only if the next word confirms it (avoids jumping to a far duplicate) */
+      for(let k=p+W;k<Math.min(PW.length,p+LOOK);k++){
+        if(tokEq(PW[k],tok)&&h+1<heard.length&&k+1<PW.length&&tokEq(PW[k+1],heard[h+1])){found=k;break;}}
+    }
+    if(found>=0){matched[found]=true;p=found+1;}
+  }
+  return matched;
+}
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
 async function ensureMic(){
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return {ok:false,reason:'unsupported'};
@@ -877,7 +893,7 @@ function renderPageScreen(){
   let recording=false,rec=null,committedText='',finishedShown=false;
 
   function updateReveal(heardTokens){
-    const {matched}=lcsMatch(PWnorm,heardTokens);
+    const matched=forwardMatch(PWnorm,heardTokens);
     let cnt=0;
     for(let i=0;i<matched.length;i++){
       if(matched[i]&&!revealed[i]){revealed[i]=true;if(els[i])els[i].classList.add('on');}
