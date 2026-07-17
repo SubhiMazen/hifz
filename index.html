@@ -371,7 +371,11 @@ function lev(a,b){const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
     for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
     [prev,cur]=[cur,prev];}
   return prev[n];}
-const tokEq=(a,b)=> a===b || (a.length>=4 && b.length>=4 && lev(a,b)<=1);
+const tokEq=(a,b)=>{ if(a===b)return true;
+  const d=lev(a,b),mn=a.length<b.length?a.length:b.length,mx=a.length>b.length?a.length:b.length;
+  return (mn>=3&&d<=1)||(mx>=6&&d<=2); };
+const MUQ=new Set(['الم','المص','الر','المر','كهيعص','طه','طسم','طس','يس','ص','حم','عسق','حمعسق','ق','ن']);
+const isMuqatta=w=>MUQ.has(normAr(w));
 function lcsMatch(ref,heard){
   const n=ref.length,m=heard.length;
   const dp=Array.from({length:n+1},()=>new Int16Array(m+1));
@@ -891,6 +895,12 @@ function renderPageScreen(){
         bar=document.getElementById('pgbar'),pctEl=document.getElementById('pgpct'),
         stopBtn=document.getElementById('stopBtn'),ctrl=document.getElementById('pgctrl');
   let recording=false,rec=null,committedText='',finishedShown=false;
+
+  /* disjointed letters (الٓمٓ ..) are recited as letter-names, which the recognizer
+     can't map to the ligature — reveal them up front so they don't read as misses */
+  list.forEach((x,i)=>{if(isMuqatta(x.w)){revealed[i]=true;if(els[i])els[i].classList.add('on');}});
+  {const c=revealed.filter(Boolean).length,p=Math.round(c/list.length*100);
+   bar.style.width=p+'%';pctEl.textContent='٪'+ar(p);}
 
   function updateReveal(heardTokens){
     const matched=forwardMatch(PWnorm,heardTokens);
